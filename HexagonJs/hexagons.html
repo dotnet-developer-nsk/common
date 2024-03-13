@@ -205,11 +205,10 @@
             }
             for (let tx = minX; tx <= maxX; tx++) {
                 if (row > 0) {
-                    if (tx > 0) {
-                        if (domains[row - 1][tx - 1] == 1) {
-                            fillDomain(row - 1, tx - 1, domIdx);
-                        }
+                    if (tx > 0 && domains[row - 1][tx - 1] == 1) {
+                        fillDomain(row - 1, tx - 1, domIdx);
                     }
+
                     if (domains[row - 1][tx] == 1) {
                         fillDomain(row - 1, tx, domIdx);
                     }
@@ -218,10 +217,8 @@
                     if (domains[row + 1][tx] == 1) {
                         fillDomain(row + 1, tx, domIdx);
                     }
-                    if (tx + 1 < width) {
-                        if (domains[row + 1][tx + 1] == 1) {
-                            fillDomain(row + 1, tx + 1, domIdx);
-                        }
+                    if (tx + 1 < width && domains[row + 1][tx + 1] == 1) {
+                        fillDomain(row + 1, tx + 1, domIdx);
                     }
                 }
             }
