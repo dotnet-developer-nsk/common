@@ -1,0 +1,234 @@
+<html lang="ru">
+<head>
+    <meta http-equiv="content-encoding" content="utf-8" />
+    <title>Hexagon domains search sample</title>
+    <script>
+        // на поле будут использованы следующие значения: -1  за краем поля, 0/1 - как в задаче
+        // Globals!
+        let field = [];
+        let domains = [];
+        let width = 0;
+        let height = 0;
+    </script>
+    <style>
+        #debug_grid td {
+            width: 16px;
+            height: 16px;
+            white-space: nowrap;
+            overflow: hidden;
+            border: dashed 1px #eee;
+        }
+
+            #debug_grid td.border {
+                border: solid 1px #ddd;
+            }
+
+            #debug_grid td.filled {
+                background-color: #ddd;
+            }
+
+        .main-div {
+            overflow-x: auto;
+            overflow-x: visible;
+        }
+    </style>
+</head>
+<body>
+    <table id="debug_grid">
+        <tbody></tbody>
+    </table>
+    <form onsubmit="do_init()">
+        L1 <input id="l1" type="number" step="1" min="1" max="30" />
+        L2 <input id="l2" type="number" step="1" min="1" max="30" />
+        L3 <input id="l3" type="number" step="1" min="1" max="30" />
+        <button type="submit">Обнови</button>
+
+        <button type="button" onclick="findDomains()"></button>
+    </form>
+    <div id="hex_grid" class="main-div" style="margin-top:24px;">
+        <svg width="24px" height="28px">
+            <path d="M 12,2 l 10,6 l 0,12 l -10,6 l -10,-6 l 0,-12 z" stroke="black" fill="white">
+            </path>
+        </svg>
+    </div>
+    <script>
+        function fillNewField(l1, l2, l3) {
+            height = l1 + l2 - 1;
+            width = l3 + l2 - 1;
+            field = []
+            for (let idx1 = 0; idx1 < height; idx1++) {
+                field[idx1] = [];
+                let start = idx1 < l1 ? 0 : idx1 - l1 + 1;
+                let end = idx1 < l2 ? l3 + idx1 - 1 : width - 1;
+                for (let idx2 = 0; idx2 < width; idx2++) {
+                    field[idx1][idx2] =
+                        (idx2 < start || idx2 > end) ? -1 : 0;
+                }
+            }
+            let dbg_tbl = document.getElementById("debug_grid");
+            if (dbg_tbl instanceof HTMLTableElement) {
+                let body = dbg_tbl.tBodies[0];
+                body.innerHTML =
+                    field
+                        .map(
+                            (row, idx1) =>
+                                `<tr data-y='${idx1}'>${row
+                                    .map(
+                                        (cell, idx2) => `<td data-x="${idx2}" class='${cell == -1 ? "" : "border"}'></td>`
+                                    )
+                                    .join("")}</tr>`
+                        )
+                        .join("");
+            }
+            let hex_grid = document.getElementById("hex_grid");
+            DrawHexGrid(field, hex_grid);
+            document.getElementById('l1').value = l1;
+            document.getElementById('l2').value = l2;
+            document.getElementById('l3').value = l3;
+        }
+
+        function DrawHexGrid(field, hex_grid) {
+            if (hex_grid instanceof HTMLDivElement) {
+                document.querySelectorAll('svg.active_cell')
+                    .forEach(sv => {
+                        if (sv.svg_click) sv.removeEventListener("click", sv.svg_click);
+                    });
+                hex_grid.innerHTML =
+                    field
+                        .map(
+                            (row, idx_row) =>
+                                `<div style="height:28px;padding-left:${(height * 11) - (idx_row * 11)}px;margin-top:-7px;">${row
+                                    .map(
+                                        (cell, idx_cell) =>
+                                            cell < 0
+                                                ? "<div style='width:22px;height:26px;display:inline-block;'></div>"
+                                                : `<svg data-y='${idx_row}' data-x='${idx_cell}' class='active_cell' width='24px' height='28px'><path d='M 12,2 l 10,6 l 0,12 l -10,6 l -10,-6 l 0,-12 z' stroke='black' fill='${cell == 0 ? "white" : "silver"}'></path></svg>`)
+                                    .join("")
+                                }</div>`
+                        )
+                        .join("");
+
+                document.querySelectorAll('svg.active_cell')
+                    .forEach(sv => {
+                        sv.svg_click = () => do_click_hex(sv);
+                        sv.addEventListener("click", sv.svg_click);
+                    });
+            }
+        }
+
+        function do_click_hex(sv) {
+            if (sv instanceof SVGElement) {
+                let row = parseInt(sv.dataset["y"]);
+                let cell = parseInt(sv.dataset["x"]);
+                if (field[row][cell]) {
+                    field[row][cell] = 0;
+                } else {
+                    field[row][cell] = 1;
+                }
+                sv.querySelectorAll("path").forEach(svp => svp.setAttribute("fill", field[row][cell] ? "silver" : "white"));
+                document.querySelectorAll(`tr[data-y='${row}'] td[data-x='${cell}']`).forEach(td => td.className = field[row][cell] ? 'border filled' : 'border');
+            }
+        }
+        function do_init() {
+            event.preventDefault();
+            let l1E = document.getElementById('l1');
+            let l2E = document.getElementById('l2');
+            let l3E = document.getElementById('l3');
+            let l1 = parseInt(l1E.value);
+            let l2 = parseInt(l2E.value);
+            let l3 = parseInt(l3E.value);
+            fillNewField(l1, l2, l3);
+            return false;
+        }
+    </script>
+    <script>
+        function findDomains() {
+            domains = []
+            for (let row = 0; row < height; row++) {
+                domains[row] = [];
+                for (let cell = 0; cell < width; cell++) {
+                    domains[row][cell] = field[row][cell]
+                }
+            }
+
+            for (let row = 0; row < height; row++) {
+                domains[row] = [];
+                for (let cell = 0; cell < width; cell++) {
+                    domains[row][cell] = field[row][cell]
+                }
+            }
+
+            let domIdx = 2;
+            for (let row = 0; row < height; row++) {
+                let x = 0;
+
+                while (x < width) {
+                    if (domains[row][x] == 1) {
+                        fillDomain(row, x, domIdx);
+                        domIdx++;
+                    }
+                    x++;
+                }
+            }
+
+            for (let row = 0; row < height; row++) {
+                for (let cell = 0; cell < width; cell++) {
+                    if (domains[row][cell] > 0) {
+                        document.querySelectorAll(`table tr[data-y='${row}'] td[data-x='${cell}']`).forEach(td => td.innerText = `${domains[row][cell]}`)
+                        document.querySelectorAll(`svg[data-y='${row}'][data-x='${cell}'] path`).forEach(svp => svp.setAttribute("fill", getDomainColor(domains[row][cell])));
+                    } else {
+                        document.querySelectorAll(`table tr[data-y='${row}'] td[data-x='${cell}']`).forEach(td => td.innerText = '')
+                    }
+                }
+            }
+        }
+
+        function getDomainColor(domainIndex) {
+            let domR = domainIndex % 8;
+            let domG = (domainIndex / 8) % 8;
+            let domB = (domainIndex / 8 * 8) % 8;
+
+            return `rgb(${domR * 31}, ${domG * 31}, ${domB * 31})`;
+        }
+
+        function fillDomain(row, x, domIdx) {
+            let minX = x;
+            let maxX = x;
+            while (minX > 1 && domains[row][minX - 1] == 1) {
+                minX--;
+            }
+            while (maxX < width - 1 && domains[row][maxX + 1] == 1) {
+                maxX++;
+            }
+            for (let tx = minX; tx <= maxX; tx++) {
+                domains[row][tx] = domIdx;
+            }
+            for (let tx = minX; tx <= maxX; tx++) {
+                if (row > 0) {
+                    if (tx > 0) {
+                        if (domains[row - 1][tx - 1] == 1) {
+                            fillDomain(row - 1, tx - 1, domIdx);
+                        }
+                    }
+                    if (domains[row - 1][tx] == 1) {
+                        fillDomain(row - 1, tx, domIdx);
+                    }
+                }
+                if (row < height - 1) {
+                    if (domains[row + 1][tx] == 1) {
+                        fillDomain(row + 1, tx, domIdx);
+                    }
+                    if (tx + 1 < width) {
+                        if (domains[row + 1][tx + 1] == 1) {
+                            fillDomain(row + 1, tx + 1, domIdx);
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <script>
+        fillNewField(3, 5, 10);
+    </script>
+</body>
+</html>
