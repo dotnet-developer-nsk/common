@@ -5,8 +5,13 @@
     <script>
         // на поле будут использованы следующие значения: -1  за краем поля, 0/1 - как в задаче
         // Globals!
+        const startEmptyIndex = 10002;
+        const startDomainIndex = 2;
         let field = [];
         let domains = [];
+        let domainNeighbors = {};
+        let empties = [];
+        let emptiesNeighbors = {};
         let width = 0;
         let height = 0;
     </script>
@@ -42,14 +47,14 @@
         L2 <input id="l2" type="number" step="1" min="1" max="30" />
         L3 <input id="l3" type="number" step="1" min="1" max="30" />
         <button type="submit">Обнови</button>
-
-        <button type="button" onclick="findDomains()"></button>
+        <button type="button" onclick="findAllDomains()">Раскраска</button>
     </form>
     <div id="hex_grid" class="main-div" style="margin-top:24px;">
-        <svg width="24px" height="28px">
-            <path d="M 12,2 l 10,6 l 0,12 l -10,6 l -10,-6 l 0,-12 z" stroke="black" fill="white">
-            </path>
-        </svg>
+
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr;">
+        <div id="domN"></div>
+        <div id="emptN"></div>
     </div>
     <script>
         function fillNewField(l1, l2, l3) {
@@ -142,29 +147,115 @@
         }
     </script>
     <script>
-        function findDomains() {
-            domains = []
-            for (let row = 0; row < height; row++) {
-                domains[row] = [];
-                for (let cell = 0; cell < width; cell++) {
-                    domains[row][cell] = field[row][cell]
-                }
+        function findAllDomains() {
+            document.querySelectorAll("table td")
+                .forEach(td => td.innerText = '');
+            document.querySelectorAll("svg path")
+                .forEach(p => p.setAttribute("fill", "white"));
+
+            domainNeighbors = []
+                ;
+            domains = findDomains(field, 1, domainNeighbors, "d_", startDomainIndex, getDomainColor);
+            emptiesNeighbors = [];
+            empties = findDomains(domains, 0, emptiesNeighbors, "e_", startEmptyIndex);
+
+            emptiesNeighbors.forEach(
+                (neighbors, empt_idx) => {
+                    neighbors.forEach(dom => {
+                        if (!domainNeighbors[dom - startDomainIndex]) {
+                            domainNeighbors[dom - startDomainIndex] = [empt_idx + startEmptyIndex];
+                        } else {
+                            domainNeighbors[dom - startDomainIndex].push(empt_idx + startEmptyIndex);
+                        }
+                    });
+                });
+
+            let cycles = [];
+
+            let is_ok = true;
+            while (is_ok) {
+                is_ok = !!processNeighbors(emptiesNeighbors, domainNeighbors, startEmptyIndex, startDomainIndex, cycles);
+                is_ok |= !!processNeighbors(domainNeighbors, emptiesNeighbors, startDomainIndex, startEmptyIndex, cycles);
             }
 
             for (let row = 0; row < height; row++) {
-                domains[row] = [];
                 for (let cell = 0; cell < width; cell++) {
-                    domains[row][cell] = field[row][cell]
+                    let cellValue = domains[row][cell];
+                    if (cellValue >= startDomainIndex) {
+                        let color = cycles.indexOf(cellValue) == -1
+                            ? getDomainColor(cellValue - startDomainIndex)
+                            : getDomainColor2(cellValue, domainNeighbors.length + emptiesNeighbors.length);
+                        document.querySelectorAll(`svg[data-y='${row}'][data-x='${cell}'] path`)
+                            .forEach(svp => svp.setAttribute("fill", color));
+                    }
                 }
             }
 
-            let domIdx = 2;
+            document.getElementById("domN").innerHTML =
+                domainNeighbors
+                    .map(
+                        (neighbors, dom_idx) =>
+                            `${dom_idx} =&gt; `
+                            + neighbors
+                                .map(n => `<span>${n == -1 ? "{EDGE}" : n - startEmptyIndex}</span>`)
+                                .join('&nbsp;|&nbsp;')
+                    )
+                    .join("<br/>");
+
+            document.getElementById("emptN").innerHTML =
+                emptiesNeighbors
+                    .map(
+                        (neighbors, dom_idx) =>
+                            `${dom_idx} =&gt; `
+                            + neighbors
+                                .map(n => `<span>${n == -1 ? "{EDGE}" : n - startDomainIndex}</span>`)
+                                .join('&nbsp;|&nbsp;')
+                    )
+                    .join("<br/>");
+        }
+
+        function processNeighbors(srcN, dstN, srcStart, dstStart, cycles) {
+            let processed = 0;
+            for (var idx = 0; idx < srcN.length; idx++) {
+                let src_id = idx + srcStart;
+                let neib = srcN[idx];
+                if (neib.length == 1) {
+                    let nb = neib[0];
+                    if (nb != -1) {
+                        let dst_idx = nb - dstStart;
+                        let dstNeib = dstN[dst_idx];
+                        let idxToRemove = dstNeib.indexOf(src_id);
+                        if (idxToRemove != -1) {
+                            dstNeib.splice(idxToRemove, 1);
+                        }
+                        if (cycles.indexOf(nb) == -1) {
+                            cycles.push(nb);
+                        }
+                        processed++;
+                        srcN[idx] = [];
+                    }
+                }
+            }
+            return processed;
+        }
+
+        function findDomains(srcData, searchValue, linksTable, prefix, startDomIdx, colorer) {
+            let retData = []
+            for (let row = 0; row < height; row++) {
+                retData[row] = [];
+                for (let cell = 0; cell < width; cell++) {
+                    retData[row][cell] = srcData[row][cell]
+                }
+            }
+
+            let domIdx = startDomIdx;
             for (let row = 0; row < height; row++) {
                 let x = 0;
 
                 while (x < width) {
-                    if (domains[row][x] == 1) {
-                        fillDomain(row, x, domIdx);
+                    if (retData[row][x] == searchValue) {
+                        linksTable[domIdx - startDomIdx] = [];
+                        fillDomain(row, x, domIdx, retData, linksTable, startDomIdx);
                         domIdx++;
                     }
                     x++;
@@ -173,31 +264,60 @@
 
             for (let row = 0; row < height; row++) {
                 for (let cell = 0; cell < width; cell++) {
-                    if (domains[row][cell] > 0) {
-                        document.querySelectorAll(`table tr[data-y='${row}'] td[data-x='${cell}']`).forEach(td => td.innerText = `${domains[row][cell]}`)
-                        document.querySelectorAll(`svg[data-y='${row}'][data-x='${cell}'] path`).forEach(svp => svp.setAttribute("fill", getDomainColor(domains[row][cell])));
-                    } else {
-                        document.querySelectorAll(`table tr[data-y='${row}'] td[data-x='${cell}']`).forEach(td => td.innerText = '')
+                    let cellValue = retData[row][cell];
+                    if (cellValue >= startDomIdx) {
+                        document.querySelectorAll(`table tr[data-y='${row}'] td[data-x='${cell}']`)
+                            .forEach(td => td.innerText = `${prefix}${cellValue - startDomIdx}`)
                     }
                 }
             }
+
+            return retData;
         }
 
         function getDomainColor(domainIndex) {
-            let domR = domainIndex % 8;
-            let domG = (domainIndex / 8) % 8;
-            let domB = (domainIndex / 8 * 8) % 8;
+            let domR = domainIndex % 20;
+            let domG = (domainIndex / 20) % 20;
 
-            return `rgb(${domR * 31}, ${domG * 31}, ${domB * 31})`;
+            return `rgb(${domR * 10 + 50}, ${domG * 10 + 50}, ${0})`;
         }
 
-        function fillDomain(row, x, domIdx) {
+        function getDomainColor2(domainIndex, count) {
+            let perc = domainIndex / count;
+
+            return `rgb(${0}, ${63 + perc * 192}, 255)`;
+        }
+
+        function fillDomain(row, x, domIdx, domains, linksTable, startDomIdx) {
+            if (row == 0 || row == height - 1 || x == 0 || x == width - 1) {
+                if (linksTable[domIdx - startDomIdx].indexOf(-1) == -1) {
+                    linksTable[domIdx - startDomIdx].push(-1);
+                }
+            }
             let minX = x;
             let maxX = x;
-            while (minX > 1 && domains[row][minX - 1] == 1) {
+            const searchValue = domains[row][x];
+
+            function addToLinksTable(checkVal) {
+                if ((checkVal < 0 || checkVal > 1) && checkVal != domIdx && linksTable[domIdx - startDomIdx].indexOf(checkVal) == -1) {
+                    linksTable[domIdx - startDomIdx].push(checkVal);
+                }
+            }
+
+            while (minX > 0) {
+                let checkVal = domains[row][minX - 1];
+                if (checkVal != searchValue) {
+                    addToLinksTable(checkVal);
+                    break;
+                }
                 minX--;
             }
-            while (maxX < width - 1 && domains[row][maxX + 1] == 1) {
+            while (maxX < width - 1) {
+                let checkVal = domains[row][maxX + 1];
+                if (checkVal != searchValue) {
+                    addToLinksTable(checkVal);
+                    break;
+                }
                 maxX++;
             }
             for (let tx = minX; tx <= maxX; tx++) {
@@ -205,20 +325,37 @@
             }
             for (let tx = minX; tx <= maxX; tx++) {
                 if (row > 0) {
-                    if (tx > 0 && domains[row - 1][tx - 1] == 1) {
-                        fillDomain(row - 1, tx - 1, domIdx);
+                    let checkVal = domains[row - 1][tx]
+                    if (checkVal == searchValue) {
+                        fillDomain(row - 1, tx, domIdx, domains, linksTable, startDomIdx);
+                    } else {
+                        addToLinksTable(checkVal);
                     }
 
-                    if (domains[row - 1][tx] == 1) {
-                        fillDomain(row - 1, tx, domIdx);
+                    if (tx > 0) {
+                        checkVal = domains[row - 1][tx - 1];
+                        if (checkVal == searchValue) {
+                            fillDomain(row - 1, tx - 1, domIdx, domains, linksTable, startDomIdx);
+                        }
+                        else {
+                            addToLinksTable(checkVal);
+                        }
                     }
                 }
                 if (row < height - 1) {
-                    if (domains[row + 1][tx] == 1) {
-                        fillDomain(row + 1, tx, domIdx);
+                    let checkVal = domains[row + 1][tx]
+                    if (checkVal == searchValue) {
+                        fillDomain(row + 1, tx, domIdx, domains, linksTable, startDomIdx);
+                    } else {
+                        addToLinksTable(checkVal);
                     }
-                    if (tx + 1 < width && domains[row + 1][tx + 1] == 1) {
-                        fillDomain(row + 1, tx + 1, domIdx);
+                    if (tx + 1 < width) {
+                        checkVal = domains[row + 1][tx + 1];
+                        if (checkVal == searchValue) {
+                            fillDomain(row + 1, tx + 1, domIdx, domains, linksTable, startDomIdx);
+                        } else {
+                            addToLinksTable(checkVal);
+                        }
                     }
                 }
             }
