@@ -16,6 +16,11 @@
         let height = 0;
     </script>
     <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
         #debug_grid td {
             width: 16px;
             height: 16px;
@@ -33,28 +38,38 @@
             }
 
         .main-div {
-            overflow-x: auto;
             overflow-x: visible;
+            overflow-x: visible;
+        }
+
+        .scroll {
+            overflow: auto;
         }
     </style>
 </head>
 <body>
-    <table id="debug_grid">
-        <tbody></tbody>
-    </table>
-    <form onsubmit="do_init()">
-        L1 <input id="l1" type="number" step="1" min="1" max="30" />
-        L2 <input id="l2" type="number" step="1" min="1" max="30" />
-        L3 <input id="l3" type="number" step="1" min="1" max="30" />
-        <button type="submit">Обнови</button>
-        <button type="button" onclick="findAllDomains()">Раскраска</button>
-    </form>
-    <div id="hex_grid" class="main-div" style="margin-top:24px;">
+    <div style="display: grid; grid-template-rows: auto 1fr 120px; width: 100vw; height: 100vh; ">
+        <div>
+            <table id="debug_grid" style="display:none;">
+                <tbody></tbody>
+            </table>
+            <form onsubmit="do_init()">
+                L1 <input id="l1" type="number" step="1" min="1" max="70" />
+                L2 <input id="l2" type="number" step="1" min="1" max="70" />
+                L3 <input id="l3" type="number" step="1" min="1" max="70" />
+                <button type="submit">Обнови</button>
+                <button type="button" onclick="findPress()">Раскраска</button>
+            </form>
+        </div>
+        <div class="scroll">
+            <div id="hex_grid" class="main-div" style="margin-top:24px;">
 
-    </div>
-    <div style="display:grid; grid-template-columns:1fr 1fr;">
-        <div id="domN"></div>
-        <div id="emptN"></div>
+            </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr;">
+            <div id="domN" class="scroll"></div>
+            <div id="emptN" class="scroll"></div>
+        </div>
     </div>
     <script>
         function fillNewField(l1, l2, l3) {
@@ -70,21 +85,21 @@
                         (idx2 < start || idx2 > end) ? -1 : 0;
                 }
             }
-            let dbg_tbl = document.getElementById("debug_grid");
-            if (dbg_tbl instanceof HTMLTableElement) {
-                let body = dbg_tbl.tBodies[0];
-                body.innerHTML =
-                    field
-                        .map(
-                            (row, idx1) =>
-                                `<tr data-y='${idx1}'>${row
+            /*            let dbg_tbl = document.getElementById("debug_grid");
+                        if (dbg_tbl instanceof HTMLTableElement) {
+                            let body = dbg_tbl.tBodies[0];
+                            body.innerHTML =
+                                field
                                     .map(
-                                        (cell, idx2) => `<td data-x="${idx2}" class='${cell == -1 ? "" : "border"}'></td>`
+                                        (row, idx1) =>
+                                            `<tr data-y='${idx1}'>${row
+                                                .map(
+                                                    (cell, idx2) => `<td data-x="${idx2}" class='${cell == -1 ? "" : "border"}'></td>`
+                                                )
+                                                .join("")}</tr>`
                                     )
-                                    .join("")}</tr>`
-                        )
-                        .join("");
-            }
+                                    .join("");
+                        }*/
             let hex_grid = document.getElementById("hex_grid");
             DrawHexGrid(field, hex_grid);
             document.getElementById('l1').value = l1;
@@ -98,6 +113,7 @@
                     .forEach(sv => {
                         if (sv.svg_click) sv.removeEventListener("click", sv.svg_click);
                     });
+                hex_grid.style.width = `${24 * width + 11 * height}px`;
                 hex_grid.innerHTML =
                     field
                         .map(
@@ -147,9 +163,22 @@
         }
     </script>
     <script>
+        function findPress() {
+            let timeStart = Date.now();
+            for (let i = 0; i < 1000; i++) {
+                findAllDomains();
+            }
+            let timeEnd = Date.now();
+            let timeSpent = timeEnd - timeStart;
+
+            let dt = (timeSpent).toString();
+            alert(`Потрачено: ${dt}`);
+        }
+
         function findAllDomains() {
-            document.querySelectorAll("table td")
-                .forEach(td => td.innerText = '');
+/*            document.querySelectorAll("table td")
+                                    .forEach(td => td.innerText = '');
+*/            
             document.querySelectorAll("svg path")
                 .forEach(p => p.setAttribute("fill", "white"));
 
@@ -262,15 +291,15 @@
                 }
             }
 
-            for (let row = 0; row < height; row++) {
-                for (let cell = 0; cell < width; cell++) {
-                    let cellValue = retData[row][cell];
-                    if (cellValue >= startDomIdx) {
-                        document.querySelectorAll(`table tr[data-y='${row}'] td[data-x='${cell}']`)
-                            .forEach(td => td.innerText = `${prefix}${cellValue - startDomIdx}`)
-                    }
-                }
-            }
+            /*            for (let row = 0; row < height; row++) {
+                            for (let cell = 0; cell < width; cell++) {
+                                let cellValue = retData[row][cell];
+                                if (cellValue >= startDomIdx) {
+                                    document.querySelectorAll(`table tr[data-y='${row}'] td[data-x='${cell}']`)
+                                        .forEach(td => td.innerText = `${prefix}${cellValue - startDomIdx}`)
+                                }
+                            }
+                        }*/
 
             return retData;
         }
@@ -362,7 +391,7 @@
         }
     </script>
     <script>
-        fillNewField(3, 5, 10);
+        fillNewField(70, 70, 70);
     </script>
 </body>
 </html>

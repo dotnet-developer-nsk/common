@@ -1,0 +1,308 @@
+﻿<html lang="ru">
+<head>
+    <meta http-equiv="content-encoding" content="utf-8" />
+    <title>Hexagon domains search sample</title>
+    <script>
+        // на поле будут использованы следующие значения: -1  за краем поля, 0/1 - как в задаче
+        // Globals!
+        let field = [];
+        let width = 0;
+        let height = 0;
+    </script>
+    <style>
+        body{
+            margin:0;
+            padding:0;
+        }
+        #debug_grid td {
+            width: 16px;
+            height: 16px;
+            white-space: nowrap;
+            overflow: hidden;
+            border: dashed 1px #eee;
+        }
+
+            #debug_grid td.border {
+                border: solid 1px #ddd;
+            }
+
+            #debug_grid td.filled {
+                background-color: #ddd;
+            }
+
+        .main-div {
+            overflow-x: visible;
+            overflow-x: visible;
+        }
+        .scroll {
+            overflow:auto;
+        }
+    </style>
+</head>
+<body>
+    <div style="display: grid; grid-template-rows: auto 1fr 120px; width: 100vw; height: 100vh; ">
+        <div>
+            <table id="debug_grid" style="display:none;">
+                <tbody></tbody>
+            </table>
+            <form onsubmit="do_init()">
+                L1 <input id="l1" type="number" step="1" min="1" max="70" />
+                L2 <input id="l2" type="number" step="1" min="1" max="70" />
+                L3 <input id="l3" type="number" step="1" min="1" max="70" />
+                <button type="submit">Обнови</button>
+                <button type="button" onclick="findPress()">Раскраска</button>
+            </form>
+        </div>
+        <div class="scroll" >
+            <div id="hex_grid" class="main-div" style="margin-top:24px;">
+
+            </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr;">
+            <div id="info" class="scroll"></div>
+        </div>
+    </div>
+    <script>
+        function fillNewField(l1, l2, l3) {
+            height = l1 + l2 - 1;
+            width = l3 + l2 - 1;
+            field = []
+            for (let idx1 = 0; idx1 < height; idx1++) {
+                field[idx1] = [];
+                let start = idx1 < l1 ? 0 : idx1 - l1 + 1;
+                let end = idx1 < l2 ? l3 + idx1 - 1 : width - 1;
+                for (let idx2 = 0; idx2 < width; idx2++) {
+                    field[idx1][idx2] =
+                        (idx2 < start || idx2 > end) ? -1 : 0;
+                }
+            }
+            /* let dbg_tbl = document.getElementById("debug_grid");
+             if (dbg_tbl instanceof HTMLTableElement) {
+                 let body = dbg_tbl.tBodies[0];
+                 body.innerHTML =
+                     field
+                         .map(
+                             (row, idx1) =>
+                                 `<tr data-y='${idx1}'>${row
+                                     .map(
+                                         (cell, idx2) => `<td data-x="${idx2}" class='${cell == -1 ? "" : "border"}'></td>`
+                                     )
+                                     .join("")}</tr>`
+                         )
+                         .join("");
+             }*/
+            let hex_grid = document.getElementById("hex_grid");
+            DrawHexGrid(field, hex_grid);
+            document.getElementById('l1').value = l1;
+            document.getElementById('l2').value = l2;
+            document.getElementById('l3').value = l3;
+        }
+
+        function DrawHexGrid(field, hex_grid) {
+            if (hex_grid instanceof HTMLDivElement) {
+                document.querySelectorAll('svg.active_cell')
+                    .forEach(sv => {
+                        if (sv.svg_click) sv.removeEventListener("click", sv.svg_click);
+                    });
+                hex_grid.style.width = `${24 * width + 11 * height}px`;
+                hex_grid.innerHTML =
+                    field
+                        .map(
+                            (row, idx_row) =>
+                                `<div style="height:28px;padding-left:${(height * 11) - (idx_row * 11)}px;margin-top:-7px;">${row
+                                    .map(
+                                        (cell, idx_cell) =>
+                                            cell < 0
+                                                ? "<div style='width:22px;height:26px;display:inline-block;'></div>"
+                                                : `<svg data-y='${idx_row}' data-x='${idx_cell}' class='active_cell' width='24px' height='28px'><path d='M 12,2 l 10,6 l 0,12 l -10,6 l -10,-6 l 0,-12 z' stroke='black' fill='${cell == 0 ? "white" : "silver"}'></path></svg>`)
+                                    .join("")
+                                }</div>`
+                        )
+                        .join("");
+
+                document.querySelectorAll('svg.active_cell')
+                    .forEach(sv => {
+                        sv.svg_click = () => do_click_hex(sv);
+                        sv.addEventListener("click", sv.svg_click);
+                    });
+            }
+        }
+
+        function do_click_hex(sv) {
+            if (sv instanceof SVGElement) {
+                let row = parseInt(sv.dataset["y"]);
+                let cell = parseInt(sv.dataset["x"]);
+                if (field[row][cell] == 1 || String(field[row][cell]).startsWith("d_")) {
+                    field[row][cell] = 0;
+                } else {
+                    field[row][cell] = 1;
+                }
+                sv.querySelectorAll("path").forEach(svp => svp.setAttribute("fill", field[row][cell] ? "silver" : "white"));
+/*                document.querySelectorAll(`tr[data-y='${row}'] td[data-x='${cell}']`).forEach(td => td.className = field[row][cell] ? 'border filled' : 'border');
+*/            }
+        }
+        function do_init() {
+            event.preventDefault();
+            let l1E = document.getElementById('l1');
+            let l2E = document.getElementById('l2');
+            let l3E = document.getElementById('l3');
+            let l1 = parseInt(l1E.value);
+            let l2 = parseInt(l2E.value);
+            let l3 = parseInt(l3E.value);
+            fillNewField(l1, l2, l3);
+            document.getElementById("info").innerHTML = ``;
+            return false;
+        }
+    </script>
+    <script>
+        function findPress() {
+            let timeStart = Date.now();
+            for (let i = 0; i < 1000; i++) {
+                findAllDomains();
+            }
+            let timeEnd = Date.now();
+            let timeSpent = timeEnd - timeStart;
+
+            let dt = (timeSpent).toString();
+            alert(`Потрачено: ${dt}`);
+        }
+        // честно говоря, алгоритму было бы проще, если бы матрица хранилась в матрице с "окантовкой" из -1. но делаем в рамках заявленного
+        function findAllDomains() {
+         
+                // cleanup
+/*            document.querySelectorAll("table td")
+                    .forEach(td => td.innerText = '');
+*/            document.querySelectorAll("svg path")
+                .forEach(p => p.setAttribute("fill", "white"));
+
+            // просто перелицуем матрицу обратно в 0 и 1
+            for (let row = 0; row < height; row++) {
+                for (let cell = 0; cell < width; cell++) {
+                    const cellValue = String(field[row][cell]);
+                    if (cellValue.startsWith("d_")) field[row][cell] = 1;
+                    if (cellValue.startsWith("e_")) field[row][cell] = 0;
+                }
+            }
+
+            let seaCount = 0;
+            let islandCount = 0;
+            const tors = new Set();
+
+            // проходимся по периметру, покрасить внешние моря
+            // тут есть пространство для оптимизации - вполне можно не проходить периметр второй раз в рамках всего обхода
+            // но это усложняет код (нужна очередь для найденных островов + контекст для переиспользования),
+            // а выгода при росте размеров уменьшается
+            for (let cell = 0; cell < width; cell++) {
+                if (field[0][cell] == 0) {
+                    paintSea(0, cell, seaCount);
+                    seaCount++;
+                }
+                if (field[height - 1][cell] == 0) {
+                    paintSea(height - 1, cell, seaCount);
+                    seaCount++;
+                }
+            }
+            for (let row = 1; row < height - 1; row++) {
+                // находим первый и последний в строке (через формулу считать тупо лень)
+                let firstCell = 0;
+                while (field[row][firstCell] == -1) firstCell++;
+                let lastCell = width - 1;
+                while (field[row][lastCell] == -1) lastCell--;
+                // красим
+                if (field[row][firstCell] == 0) {
+                    paintSea(row, firstCell, seaCount);
+                    seaCount++;
+                }
+                if (field[row][lastCell] == 0) {
+                    paintSea(row, lastCell, seaCount);
+                    seaCount++;
+                }
+            }
+
+            // теперь ищем и красим острова
+            for (let seedRow = 0; seedRow < height; seedRow++) {
+                for (let seedCell = 0; seedCell < width; seedCell++) {
+                    if (field[seedRow][seedCell] == 1) {
+                        // покраска острова. прям тут, чтобы не связываться с глобалами или контекстом
+                        let process = [];
+                        process.push([seedRow, seedCell]);
+                        while (process.length != 0) {
+                            let [row, cell] = process.shift();
+                            if (row < 0 || row >= height || cell < 0 || cell >= width) continue;
+                            if (field[row][cell] == 0) {
+                                // внутреннее море, заносим остров в список дырявых, красим море
+                                tors.add(islandCount);
+                                paintSea(row, cell, seaCount);
+                                seaCount++;
+                                continue;
+                            }
+                            if (field[row][cell] != 1) continue;
+                            field[row][cell] = "d_" + islandCount;
+                            // push neighbors
+                            process.push([row - 1, cell - 1], [row - 1, cell], [row, cell - 1], [row, cell + 1], [row + 1, cell], [row + 1, cell + 1]);
+                                // debug красим
+/*                            document.querySelectorAll(`table tr[data-y='${row}'] td[data-x='${cell}']`)
+                                    .forEach(td => td.innerText = `${field[row][cell]}`)
+*/                        }
+                        islandCount++;
+                    }
+                }
+            }
+
+            // раскраска уже по результатам
+            let torsColor = new Map();
+            for (let row = 0; row < height; row++) {
+                for (let cell = 0; cell < width; cell++) {
+                    let cellValue = String(field[row][cell]);
+                    if (cellValue.startsWith("d_")) {
+                        let islandId = Number(cellValue.substring(2));
+                        let color = `rgb(0, 0, 0)`;
+                        if (tors.has(islandId)) {
+                            color = torsColor.get(islandId);
+                            if (!color) {
+                                color = getDomainColor2(torsColor.size, tors.size);
+                                torsColor.set(islandId, color);
+                            }
+                        }
+
+                        document.querySelectorAll(`svg[data-y='${row}'][data-x='${cell}'] path`)
+                            .forEach(svp => svp.setAttribute("fill", color));
+                    }
+                }
+            }
+
+            // выведем количество островов + дырявых
+            let info = `Количество островов:` + islandCount;
+            if (tors.size > 0) {
+                info += `<br/>Id(s) дырявых островов:` + Array.from(tors).join(", ");
+            }
+            document.getElementById("info").innerHTML = info;
+        }
+
+        function paintSea(seedRow, seedCell, index) {
+            let process = [];
+            process.push([seedRow, seedCell]);
+            while (process.length != 0) {
+                let [row, cell] = process.shift();
+                if (row < 0 || row >= height || cell < 0 || cell >= width) continue;
+                if (field[row][cell] != 0) continue;
+                field[row][cell] = "e_" + index;
+                // push neighbors
+                process.push([row - 1, cell - 1], [row - 1, cell], [row, cell - 1], [row, cell + 1], [row + 1, cell], [row + 1, cell + 1]);
+                // debug красим
+                /* document.querySelectorAll(`table tr[data-y='${row}'] td[data-x='${cell}']`)
+                     .forEach(td => td.innerText = `${field[row][cell]}`)*/
+            }
+        }
+
+        function getDomainColor2(domainIndex, count) {
+            let perc = domainIndex / count;
+
+            return `rgb(${0}, ${63 + perc * 192}, 255)`;
+        }
+    </script>
+    <script>
+        fillNewField(70, 70, 70);
+    </script>
+</body>
+</html>
